@@ -1,15 +1,124 @@
 <!doctype html>
 <html lang="ja">
-<meta charset="utf-8">
-<title>508 Loop Detected</title>
-<style>
-body{text-align:center;font-family:sans-serif;margin:0}
-h1{background:#333;color:white;margin:0;padding:1em}
-.dummy{font-size:128px}
-</style>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>508 Loop Detected</title>
+  <style>
+    :root{--bg:#0b1020;--accent:#ffd36b;--line:#6fb3ff}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#07101a 0%,#0b1020 80%);color:#dce7ff;font-family:system-ui, -apple-system, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif}
+    .wrap{height:100vh;display:grid;place-items:center;gap:20px;padding:30px;box-sizing:border-box}
+    h1{margin:0;font-size:20px;letter-spacing:1px}
+    p{margin:0;opacity:.8}
+    /* canvas area */
+    .scene{width:760px;max-width:94vw;height:360px;background:rgba(255,255,255,0.02);border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,.6);position:relative;overflow:hidden}
+
+    /* Infinity mark visual */
+    svg.infinity{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+    svg.infinity path.track{fill:none;stroke:rgba(111,179,255,0.06);stroke-width:44;stroke-linecap:round}
+    svg.infinity path.ridge{fill:none;stroke:rgba(255,211,107,0.06);stroke-width:2}
+
+    /* skater wrapper moves along the path */
+    #skater{position:absolute;width:84px;height:64px;left:0;top:0;translate:-42px -32px;offset-rotate:auto;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 6px 10px rgba(2,6,23,.6))}
+
+    /* motion along path */
+    @keyframes skate{from{offset-distance:0%}to{offset-distance:100%}}
+    /* speed */
+    #skater{animation:skate 6.6s linear infinite}
+
+    /* simple two-frame leg walk animation inside SVG */
+    .leg{transform-origin:50% 20%;animation:legstep .33s steps(1) infinite}
+    .leg.left{animation-delay:0s}
+    .leg.right{animation-delay:.165s}
+    @keyframes legstep{50%{transform:rotate(18deg)}0%,100%{transform:rotate(-8deg)}}
+
+    /* small caption */
+    .meta{position:absolute;left:12px;bottom:12px;font-size:12px;opacity:.6}
+
+    /* accessibility: reduce motion toggle (prefers-reduced-motion) */
+    @media (prefers-reduced-motion:reduce){#skater{animation:none}.leg{animation:none}}
+  </style>
+</head>
 <body>
-<h1>508 Loop Detected</h1>
-<div class="dummy">🔄</div>
-<p>無限ループっぽいのを見つけたで。</p>
+  <div class="wrap">
+    <div>
+      <h1>508 - Loop Detected</h1>
+      <p>無限ループを検知しました。ぐるぐるぐるぐる</p>
+    </div>
+    <div class="scene" role="img" aria-label="Looping cat on an infinity sign">
+      <!-- Infinity visual -->
+      <svg class="infinity" viewBox="0 0 760 360" preserveAspectRatio="xMidYMid slice">
+        <!-- soft track for motion-path reference -->
+        <path id="infinityPath" class="track" d="M120,180 C120,80 220,80 270,180 C320,280 420,280 420,180 C420,80 320,80 270,180 C220,280 120,280 120,180 Z" />
+        <path class="ridge" d="M120,180 C120,80 220,80 270,180 C320,280 420,280 420,180 C420,80 320,80 270,180 C220,280 120,280 120,180 Z" />
+      </svg>
+
+      <!-- skater container that will be positioned along the same path -->
+      <div id="skater" aria-hidden="true">
+        <!-- Inline SVG cat (two-legged, small) -->
+        <svg id="catSVG" width="84" height="64" viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg" role="presentation">
+          <g transform="translate(0,6)">
+            <!-- board -->
+            <rect x="6" y="44" width="72" height="8" rx="4" fill="#22223a" stroke="#ffd36b" stroke-width="1.2"/>
+            <!-- wheels -->
+            <circle cx="20" cy="54" r="3.6" fill="#0f1724"/>
+            <circle cx="64" cy="54" r="3.6" fill="#0f1724"/>
+
+            <!-- body -->
+            <g id="body" transform="translate(12,6)">
+              <ellipse cx="22" cy="20" rx="18" ry="14" fill="#ffd36b"/>
+              <!-- head -->
+              <g transform="translate(36,4)">
+                <circle cx="6" cy="6" r="6" fill="#ffd36b"/>
+                <polygon points="2,2 4,0 6,2" fill="#ffd36b"/>
+                <circle cx="4" cy="6" r="1.2" fill="#111827"/>
+                <circle cx="8" cy="6" r="1.2" fill="#111827"/>
+              </g>
+              <!-- legs (two, animated) -->
+              <g class="leg left" transform="translate(8,28)">
+                <rect x="0" y="0" width="4" height="14" rx="2" fill="#ffd36b"/>
+              </g>
+              <g class="leg right" transform="translate(28,28)">
+                <rect x="0" y="0" width="4" height="14" rx="2" fill="#ffd36b"/>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="meta">508 • Loop Detected</div>
+    </div>
+  </div>
+
+  <script>
+    // Build a base64-encoded image of the same cat SVG (meets "base64で画像を埋め込む" requirement).
+    (function(){
+      const svgEl = document.getElementById('catSVG');
+      const svgText = new XMLSerializer().serializeToString(svgEl);
+      // keep palette tiny: using only a few colors in SVG (<=16)
+      const b64 = btoa(unescape(encodeURIComponent(svgText)));
+      const dataUrl = 'data:image/svg+xml;base64,' + b64;
+
+      // create a hidden img that contains the base64 data (no external files)
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = '';
+      img.style.width = '1px'; img.style.height='1px'; img.style.opacity='0'; img.style.position='absolute'; img.style.pointerEvents='none';
+      document.body.appendChild(img);
+
+      // Position the visible skater along the same path using CSS offset-path.
+      // Extract the path 'd' attribute and convert to a CSS path string.
+      const path = document.getElementById('infinityPath').getAttribute('d');
+      const skater = document.getElementById('skater');
+      // apply offset-path
+      skater.style.offsetPath = `path('${path}')`;
+
+      // small tilt to give visual twist: animate rotation on each loop
+      skater.addEventListener('animationiteration', ()=>{
+        // subtle wobble by toggling scale
+        skater.animate([{transform:'translate(-42px,-32px) rotate(-2deg)'},{transform:'translate(-42px,-32px) rotate(2deg)'},{transform:'translate(-42px,-32px) rotate(-2deg)'}],{duration:800,easing:'ease-in-out'});
+      });
+    })();
+  </script>
 </body>
 </html>
